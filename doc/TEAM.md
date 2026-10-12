@@ -8,7 +8,7 @@ Trưởng nhóm/người nộp: Nguyễn Hoàng Anh – 2A202602811 (chủ repo)
 
 Ngày lab/deadline áp dụng: lab 12/10/2026; deadline 11:59 AM 13/10/2026 theo README — Asia/Ho_Chi_Minh (UTC+07:00)
 
-Commit dùng để chấm: chưa chốt; trưởng nhóm ghi SHA commit trên `main` sau khi merge nhánh `integration` và trước khi nộp link.
+Commit dùng để chấm: `88c27ed` (nhánh `main`)
 
 Mỗi nhóm nộp một repo. Điền đủ thành viên và một mục INDIVIDUAL cho từng người.
 
