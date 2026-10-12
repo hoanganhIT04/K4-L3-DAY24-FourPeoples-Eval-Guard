@@ -2,7 +2,8 @@
 
 Nhóm: FourPeoples
 
-Người phụ trách: Mai Văn Trường – 2A202602983 (soạn báo cáo với hỗ trợ của Claude Code, số liệu đối chiếu trực tiếp từ JSON)
+Người soạn bản thảo ban đầu: Mai Văn Trường – 2A202602983 (soạn báo cáo với hỗ trợ của Claude Code, số liệu đối chiếu trực tiếp từ JSON)
+Người review & xác minh Phase B: Nguyễn Viết Đức – 2A202602732 (đối chiếu 5 cặp A/B, 10 binary judgments, tính lại Cohen's κ và kiểm tra bias trong artifacts/judge_results.json)
 
 Nguồn: `artifacts/judge_results.json`; run timestamp: 2026-10-12T12:38:54+00:00.
 Models generation/judge: generation `gpt-4o-mini-2024-07-18` (nguồn answer A); judge `gpt-4o-mini`
