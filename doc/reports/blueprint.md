@@ -2,7 +2,8 @@
 
 Nhóm: FourPeoples
 
-Người phụ trách: Mai Văn Trường – 2A202602983 (soạn báo cáo với hỗ trợ của Claude Code, số liệu đối chiếu trực tiếp từ JSON)
+Người soạn bản thảo ban đầu: Mai Văn Trường – 2A202602983 (soạn báo cáo với hỗ trợ của Claude Code, số liệu đối chiếu trực tiếp từ JSON)
+Người review & xác minh Phase C: Lục Tiến Đạt – 2A202602969 (rà soát phase_c_guard.py, guardrails/config.yml, đối chiếu 20 attacks, 8 clean controls, 4 outputs và kiểm chứng số đo latency trong artifacts/guard_results.json)
 
 Đây là **đề xuất CI/CD**, không phải workflow đã được triển khai/chạy.
 Nguồn kết quả: artifacts/ragas_50q.json, judge_results.json, guard_results.json.
@@ -16,12 +17,12 @@ evaluator `gpt-4o-mini` + `text-embedding-3-small` (ragas_50q.json, từ metadat
 Input → Presidio → NeMo input → RAG → NeMo output → response.
 Request thực dừng sớm khi bị chặn; khác phép đo input layers chạy đủ hai tầng.
 
-| Tầng | Kiểm tra | Khi phát hiện | Bằng chứng từ lab |
-|---|---|---|---|
-| Presidio (local, spaCy `en_core_web_lg` + regex VN) | VN_CCCD (12 số), CMND (9 số), VN_PHONE, EMAIL, PHONE_NUMBER, CREDIT_CARD, IBAN | Chặn request, trả câu từ chối cố định; log chỉ giữ bản `anonymized` và loại entity, không log input gốc | Chặn 4/4 attack pii_injection có định danh trực tiếp; 0/8 câu sạch bị chặn |
-| NeMo input rail (`self check input`, gpt-4o-mini) | Off-topic, jailbreak, giả danh vai trò, prompt injection, trích system prompt, đòi dữ liệu cá nhân/credential | Chặn, trả câu từ chối trong `rails.co`; log tên rail đã stop | Chặn 16/20 attack, gồm 1 pii_injection không có số định danh (id 5) |
-| RAG (m1–m5) | Hybrid search + rerank top-3 + gpt-4o-mini | Lỗi API: hiện tại rơi về extractive fallback; đề xuất retry có backoff rồi trả lỗi tạm thời thay vì trả context thô | Lượt setup đầu có 14/50 câu fallback do mất mạng |
-| NeMo output rail (`self check output`) | Định danh cá nhân, lương cá nhân, credential, hồ sơ mật | Thay answer bằng câu từ chối; answer sạch giữ nguyên | 2/2 output nhạy cảm bị thay, 2/2 output sạch giữ nguyên |
+| Tầng                                                | Kiểm tra                                                                                                      | Khi phát hiện                                                                                                       | Bằng chứng từ lab                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Presidio (local, spaCy `en_core_web_lg` + regex VN) | VN_CCCD (12 số), CMND (9 số), VN_PHONE, EMAIL, PHONE_NUMBER, CREDIT_CARD, IBAN                                | Chặn request, trả câu từ chối cố định; log chỉ giữ bản `anonymized` và loại entity, không log input gốc             | Chặn 4/4 attack pii_injection có định danh trực tiếp; 0/8 câu sạch bị chặn |
+| NeMo input rail (`self check input`, gpt-4o-mini)   | Off-topic, jailbreak, giả danh vai trò, prompt injection, trích system prompt, đòi dữ liệu cá nhân/credential | Chặn, trả câu từ chối trong `rails.co`; log tên rail đã stop                                                        | Chặn 16/20 attack, gồm 1 pii_injection không có số định danh (id 5)        |
+| RAG (m1–m5)                                         | Hybrid search + rerank top-3 + gpt-4o-mini                                                                    | Lỗi API: hiện tại rơi về extractive fallback; đề xuất retry có backoff rồi trả lỗi tạm thời thay vì trả context thô | Lượt setup đầu có 14/50 câu fallback do mất mạng                           |
+| NeMo output rail (`self check output`)              | Định danh cá nhân, lương cá nhân, credential, hồ sơ mật                                                       | Thay answer bằng câu từ chối; answer sạch giữ nguyên                                                                | 2/2 output nhạy cảm bị thay, 2/2 output sạch giữ nguyên                    |
 
 Secrets (`OPENAI_API_KEY`) chỉ nằm trong `.env` (đã gitignore) hoặc secret store của CI; không đưa
 vào log, artifacts hay prompt. Chỉ Presidio là local; nếu OpenAI lỗi, hai tầng NeMo không chạy được.
@@ -45,14 +46,14 @@ Percentile nội suy tuyến tính từ raw samples; tổng từ tổng từng s
 Số mẫu timed: 20; warm-up: 2;
 phương pháp: linear (vị trí (n−1)·q, 8 câu sạch lặp vòng, `time.perf_counter`).
 
-| Layer / scope | P50 ms | P95 ms | P99 ms | Tình trạng |
-|---|---|---|---|---|
-| Presidio | 23.03 | 35.72 | 36.55 | Đã đo; nhanh, ổn định (17.9–36.8 ms) |
-| NeMo input | 675.11 | 823.05 | 945.97 | Đã đo; chiếm khoảng 96% thời gian, 623–977 ms |
-| Input guard sequential | 707.52 | 843.06 | 968.31 | Đã đo; P95 vượt target 500 ms |
-| RAG | chưa đo | chưa đo | chưa đo | Ngoài phạm vi bắt buộc |
-| NeMo output | chưa đo | chưa đo | chưa đo | Ngoài phạm vi bắt buộc |
-| Full guard / short-circuit request | chưa đo | chưa đo | chưa đo | Không suy từ input_guard_ms |
+| Layer / scope                      | P50 ms  | P95 ms  | P99 ms  | Tình trạng                                    |
+| ---------------------------------- | ------- | ------- | ------- | --------------------------------------------- |
+| Presidio                           | 23.03   | 35.72   | 36.55   | Đã đo; nhanh, ổn định (17.9–36.8 ms)          |
+| NeMo input                         | 675.11  | 823.05  | 945.97  | Đã đo; chiếm khoảng 96% thời gian, 623–977 ms |
+| Input guard sequential             | 707.52  | 843.06  | 968.31  | Đã đo; P95 vượt target 500 ms                 |
+| RAG                                | chưa đo | chưa đo | chưa đo | Ngoài phạm vi bắt buộc                        |
+| NeMo output                        | chưa đo | chưa đo | chưa đo | Ngoài phạm vi bắt buộc                        |
+| Full guard / short-circuit request | chưa đo | chưa đo | chưa đo | Không suy từ input_guard_ms                   |
 
 Input-layer budget target: 500ms; kết quả thực tế/budget_ok: P95 = 843.06 ms, `latency_budget_ok = false`.
 
@@ -99,13 +100,13 @@ Job đề xuất (chưa triển khai, repo chưa có workflow CI):
 
 ## Monitoring và cải tiến
 
-| Metric | Cách lấy | Ngưỡng cảnh báo đề xuất | Người xử lý |
-|---|---|---|---|
-| Tỷ lệ request bị chặn theo tầng | Đếm `blocked_by` và tên rail trong log | Tăng hoặc giảm hơn 2 lần so với trung bình 7 ngày | Người phụ trách guard |
-| False positive | Lấy mẫu hằng tuần các request bị chặn để người xem; người dùng báo chặn nhầm | Bất kỳ câu hỏi chính sách hợp lệ nào bị chặn | Người phụ trách guard |
-| Latency theo tầng | Timestamp từng tầng, P50/P95 theo giờ | Input guard P95 > 1000 ms trong 15 phút | Người tích hợp |
-| Tỷ lệ "Không tìm thấy." và fallback | Đếm answer từ chối và `generation_mode` | Từ chối > 10% hoặc có fallback | Người tích hợp |
-| Chất lượng RAG | RAGAS trên mẫu câu hỏi thật hằng tuần, kèm judge có κ đã kiểm | faithfulness < 0.75 | Người phụ trách eval |
+| Metric                              | Cách lấy                                                                     | Ngưỡng cảnh báo đề xuất                           | Người xử lý           |
+| ----------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------- | --------------------- |
+| Tỷ lệ request bị chặn theo tầng     | Đếm `blocked_by` và tên rail trong log                                       | Tăng hoặc giảm hơn 2 lần so với trung bình 7 ngày | Người phụ trách guard |
+| False positive                      | Lấy mẫu hằng tuần các request bị chặn để người xem; người dùng báo chặn nhầm | Bất kỳ câu hỏi chính sách hợp lệ nào bị chặn      | Người phụ trách guard |
+| Latency theo tầng                   | Timestamp từng tầng, P50/P95 theo giờ                                        | Input guard P95 > 1000 ms trong 15 phút           | Người tích hợp        |
+| Tỷ lệ "Không tìm thấy." và fallback | Đếm answer từ chối và `generation_mode`                                      | Từ chối > 10% hoặc có fallback                    | Người tích hợp        |
+| Chất lượng RAG                      | RAGAS trên mẫu câu hỏi thật hằng tuần, kèm judge có κ đã kiểm                | faithfulness < 0.75                               | Người phụ trách eval  |
 
 Privacy: log chỉ giữ văn bản đã anonymize; bộ test dùng dữ liệu giả lập, không thay bằng CCCD/điện
 thoại thật. Drift: khi corpus có phiên bản chính sách mới, thêm câu hỏi version conflict vào bộ eval
